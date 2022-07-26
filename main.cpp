@@ -103,7 +103,7 @@ bool init_game()
     }
 
     // verifica se os hardware necessario está disponível.
-    if (!al_install_keyboard() || !al_install_mouse())
+    if (!al_install_keyboard())
     {
         cout << "ERRO! O hardware necessario nao esta disponivel.\n";
         return false;
@@ -183,7 +183,6 @@ bool init_game()
     al_register_event_source(event_queue, al_get_display_event_source(display));
     al_register_event_source(event_queue, al_get_timer_event_source(timer));
     al_register_event_source(event_queue, al_get_keyboard_event_source());
-    al_register_event_source(event_queue, al_get_mouse_event_source());
 
     // reinicio de cores
     al_clear_to_color(al_map_rgb(0, 0, 0));
@@ -357,10 +356,6 @@ void check_event(ALLEGRO_EVENT ev)
     else if (ev.type == ALLEGRO_EVENT_DISPLAY_CLOSE)
     {
         game_running = false;
-    }
-
-    else if (ev.type == ALLEGRO_EVENT_MOUSE_BUTTON_UP)
-    {
     }
 }
 
