@@ -136,9 +136,6 @@ bool init_game()
         return false;
     }
 
-    // desenha o mapa
-    al_draw_bitmap(map, 0, 0, 0);
-
     // carrega sprite com partes da cobra
     snake = al_load_bitmap("./assets/images/snake.png");
 
