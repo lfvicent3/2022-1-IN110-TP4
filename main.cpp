@@ -2,7 +2,6 @@
 #include <ctime>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_image.h>
-#include <allegro5/allegro_opengl.h>
 
 using namespace std;
 
@@ -85,12 +84,11 @@ int fruit_index = 0;
 // Posição da cobra na matriz
 int i = 11, j = 11;
 
-// posicao da cobra no display
-int posy = i * SIZE_REF;
-int posx = i * SIZE_REF;
-
 // frag morreu
 bool lost_game = false;
+
+// frag menu
+bool menu_running = true;
 
 bool init_game()
 {
@@ -219,7 +217,6 @@ void move_snake()
     if (move_up && MAP_REF[i][j] != '1')
     {
         i--;
-        posy = i * SIZE_REF;
         INDEX_SNAKE[i][j] = 1;
     }
     // pode ser parede ou a propria cobra, morre
@@ -232,7 +229,6 @@ void move_snake()
     if (move_down && MAP_REF[i][j] != '1')
     {
         i++;
-        posy = i * SIZE_REF;
         INDEX_SNAKE[i][j] = 2;
     }
     // pode ser parede ou a propria cobra, morre
@@ -245,7 +241,6 @@ void move_snake()
     if (move_left && MAP_REF[i][j] != '1')
     {
         j--;
-        posx = j * SIZE_REF;
         INDEX_SNAKE[i][j] = 3;
     }
     // pode ser parede ou a propria cobra, morre
@@ -258,7 +253,6 @@ void move_snake()
     if (move_right && MAP_REF[i][j] != '1')
     {
         j++;
-        posx = j * SIZE_REF;
         INDEX_SNAKE[i][j] = 4;
     }
     // pode ser parede ou a propria cobra, morre
@@ -497,12 +491,12 @@ void finish_game()
     al_destroy_event_queue(event_queue);
 }
 
-int main()
+bool game()
 {
     // carrega o jogo
     if (!init_game())
     {
-        return 0;
+        return false;
     }
 
     // inicializa variaveis de direcao
@@ -522,6 +516,41 @@ int main()
 
     // finaliza o jogo
     finish_game();
+
+    return true;
+}
+
+bool init_menu()
+{
+}
+
+void run_menu()
+{
+}
+
+void destroy_menu()
+{
+}
+
+int main()
+{
+    if (!init_menu())
+    {
+        return 0;
+    }
+
+    while (menu_running)
+    {
+        run_menu();
+    }
+
+    destroy_menu();
+
+    bool exit = game();
+    if (!exit)
+    {
+        return 0;
+    }
 
     return 0;
 }
