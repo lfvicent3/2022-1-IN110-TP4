@@ -2,15 +2,17 @@
 #include <ctime>
 #include <allegro5/allegro.h>
 #include <allegro5/allegro_image.h>
+#include <allegro5/allegro_audio.h>
+#include <allegro5/allegro_acodec.h>
 
 using namespace std;
 
 // Definicao de FPS
-const double FPS = 15;
+const double FPS = 10;
 // Definicao de Altura
-const int SCREEN_H = 572;
+const int SCREEN_H = 665;
 // Definicao de largura
-const int SCREEN_W = 572;
+const int SCREEN_W = 1000;
 // Definicao do tamanho referencia
 const int SIZE_REF = 26;
 
@@ -24,9 +26,18 @@ ALLEGRO_BITMAP *map = NULL;
 ALLEGRO_BITMAP *snake = NULL;
 // frutas
 ALLEGRO_BITMAP *fruit = NULL;
-
+// menu
+ALLEGRO_BITMAP *game_background = NULL;
+ALLEGRO_BITMAP *game_menu = NULL;
+ALLEGRO_BITMAP *clouds = NULL;
 // fila de eventos
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
+// background music
+ALLEGRO_SAMPLE *background_menu_music = NULL;
+ALLEGRO_SAMPLE_INSTANCE *background_menu_music_instance = NULL;
+// morder efeito
+ALLEGRO_SAMPLE *morder_game_effect = NULL;
+ALLEGRO_SAMPLE_INSTANCE *morder_game_effect_instance = NULL;
 
 // direcoes
 bool move_up, move_down, move_left, move_right;
@@ -35,25 +46,25 @@ bool move_up, move_down, move_left, move_right;
 char MAP_REF[22][22] =
     {
         "111111111111111111111",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
-        "000000000000000000000",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
+        "100000000000000000001",
         "111111111111111111111",
 };
 
@@ -61,7 +72,7 @@ char MAP_REF[22][22] =
 int position = 0;
 
 // frag termina o jogo
-bool game_running = true;
+bool game_running = false;
 
 // frag redesenha o jogo
 bool redraw = true;
@@ -92,102 +103,6 @@ bool menu_running = true;
 
 bool init_game()
 {
-
-    // verifica se e possivel carregar o allegro
-    if (!al_init() || !al_init_image_addon())
-    {
-        cout << "ERRO! Nao foi possivel carregar os arquivos necessarios.\n";
-        return false;
-    }
-
-    // verifica se os hardware necessario está disponível.
-    if (!al_install_keyboard())
-    {
-        cout << "ERRO! O hardware necessario nao esta disponivel.\n";
-        return false;
-    }
-
-    // Inicializa o timer do jogo.
-    timer = al_create_timer(1.0 / FPS);
-    if (!timer)
-    {
-        cout << "ERRO! Nao foi possivel inicializar o temporarizador. \n";
-        return false;
-    }
-
-    // Inicializa display
-    display = al_create_display(SCREEN_W, SCREEN_H);
-    if (!display)
-    {
-        cout << "ERRO! Nao foi possivel inicializar o display.\n";
-        al_destroy_timer(timer);
-        return false;
-    }
-
-    // carrega o mapa
-    map = al_load_bitmap("./assets/images/map.png");
-    if (!map)
-    {
-        cout << "ERRO! Nao foi possivel carregar o mapa.\n";
-        al_destroy_display(display);
-        al_destroy_timer(timer);
-        return false;
-    }
-
-    // carrega sprite com partes da cobra
-    snake = al_load_bitmap("./assets/images/snake.png");
-
-    if (!snake)
-    {
-        cout << "ERRO! Nao foi possivel carregar personagem.\n";
-        al_destroy_bitmap(map);
-        al_destroy_display(display);
-        al_destroy_timer(timer);
-        return false;
-    }
-
-    // carrega frutas do jogo
-    fruit = al_load_bitmap("./assets/images/fruits.png");
-
-    if (!fruit)
-    {
-        cout << "ERRO! Nao foi possivel carregar frutas.\n";
-        al_destroy_bitmap(snake);
-        al_destroy_bitmap(map);
-        al_destroy_display(display);
-        al_destroy_timer(timer);
-        return false;
-    }
-
-    // Cria a fila de eventos
-    event_queue = al_create_event_queue();
-    if (!event_queue)
-    {
-        cout << "ERRO! Nao foi possivel criar a fila de eventos.\n";
-
-        al_destroy_bitmap(fruit);
-        al_destroy_bitmap(snake);
-        al_destroy_bitmap(map);
-        al_destroy_display(display);
-        al_destroy_timer(timer);
-
-        return false;
-    }
-
-    // registra os eventos
-    al_register_event_source(event_queue, al_get_display_event_source(display));
-    al_register_event_source(event_queue, al_get_timer_event_source(timer));
-    al_register_event_source(event_queue, al_get_keyboard_event_source());
-
-    // reinicio de cores
-    al_clear_to_color(al_map_rgb(0, 0, 0));
-
-    // envia mudancas para a interface
-    al_flip_display();
-
-    // inicia o timer
-    al_start_timer(timer);
-
     return true;
 }
 
@@ -264,6 +179,8 @@ void move_snake()
     // verifica se a cobra pegou fruta
     if ((move_up || move_down || move_right || move_left) && MAP_REF[i][j] == '3')
     {
+        // ativa som de mordida
+        al_play_sample_instance(morder_game_effect_instance);
         // aumenta tamanho da cobra
         snake_size++;
         // reseta posicao que a fruta estava
@@ -481,14 +398,8 @@ void run_game()
     is_game_lost();
 }
 
-void finish_game()
+void destroy_game()
 {
-    al_destroy_bitmap(fruit);
-    al_destroy_bitmap(snake);
-    al_destroy_bitmap(map);
-    al_destroy_display(display);
-    al_destroy_timer(timer);
-    al_destroy_event_queue(event_queue);
 }
 
 bool game()
@@ -499,29 +410,163 @@ bool game()
         return false;
     }
 
-    // inicializa variaveis de direcao
-    move_up = false;
-    move_down = false;
-    move_left = false;
-    move_right = false;
+    return true;
+}
 
-    // gera a fruta inicial
-    generate_fruit();
+bool init()
+{
 
-    // executa o jogo
-    while (game_running)
+    // verifica se e possivel carregar o allegro
+    if (!al_init() || !al_init_image_addon() || !al_init_acodec_addon())
     {
-        run_game();
+        cout << "ERRO! Nao foi possivel carregar os arquivos necessarios.\n";
+        return false;
     }
 
-    // finaliza o jogo
-    finish_game();
+    // verifica se os hardware necessario está disponível.
+    if (!al_install_keyboard() || !al_install_audio())
+    {
+        cout << "ERRO! O hardware necessario nao esta disponivel.\n";
+        return false;
+    }
+
+    // reserva samples de audio
+    if (!al_reserve_samples(1))
+    {
+        cout << "ERRO! Nao foi possivel reservar samples.\n";
+    }
+
+    // Inicializa o timer do jogo.
+    timer = al_create_timer(1.0 / FPS);
+    if (!timer)
+    {
+        cout << "ERRO! Nao foi possivel inicializar o temporarizador. \n";
+        return false;
+    }
+
+    // Inicializa display
+    al_set_new_display_flags(ALLEGRO_WINDOWED);
+
+    display = al_create_display(SCREEN_W, SCREEN_H);
+    if (!display)
+    {
+        cout << "ERRO! Nao foi possivel inicializar o display.\n";
+        al_destroy_timer(timer);
+        return false;
+    }
+
+    // carrega partes do jogo
+    map = al_load_bitmap("./assets/images/map.png");
+    snake = al_load_bitmap("./assets/images/snake.png");
+    fruit = al_load_bitmap("./assets/images/fruits.png");
+    game_background = al_load_bitmap("./assets/images/menu_back.png");
+    game_menu = al_load_bitmap("./assets/images/menu.png");
+    clouds = al_load_bitmap("./assets/images/clouds.png");
+
+    if (!map || !snake || !fruit || !game_background || !game_menu || !clouds)
+    {
+        cout << "ERRO! Nao foi possivel carregar assets.\n";
+        al_destroy_display(display);
+        al_destroy_timer(timer);
+        return false;
+    }
+
+    // carrega sons
+    background_menu_music = al_load_sample("./assets/music/abertura.ogg");
+    morder_game_effect = al_load_sample("./assets/music/comeu.ogg");
+    if (!background_menu_music || !morder_game_effect)
+    {
+        cout << "ERRO! Nao foi possivel carregar sons.\n";
+
+        al_destroy_bitmap(game_background);
+        al_destroy_bitmap(game_menu);
+
+        al_destroy_bitmap(fruit);
+        al_destroy_bitmap(snake);
+        al_destroy_bitmap(map);
+        al_destroy_display(display);
+        al_destroy_timer(timer);
+
+        return false;
+    }
+
+    // cria instancias de sons e configura
+    background_menu_music_instance = al_create_sample_instance(background_menu_music);
+    morder_game_effect_instance = al_create_sample_instance(morder_game_effect);
+    if (!background_menu_music_instance || !morder_game_effect_instance)
+    {
+        cout << "ERRO! Não foi possivel criar samples instances.\n";
+
+        al_destroy_bitmap(game_background);
+        al_destroy_bitmap(game_menu);
+
+        al_destroy_sample(morder_game_effect);
+        al_destroy_sample(background_menu_music);
+        al_destroy_bitmap(fruit);
+        al_destroy_bitmap(snake);
+        al_destroy_bitmap(map);
+        al_destroy_display(display);
+        al_destroy_timer(timer);
+
+        return false;
+    }
+    al_set_sample_instance_playmode(background_menu_music_instance, ALLEGRO_PLAYMODE_LOOP);
+    al_attach_sample_instance_to_mixer(background_menu_music_instance, al_get_default_mixer());
+    al_set_sample_instance_playmode(morder_game_effect_instance, ALLEGRO_PLAYMODE_ONCE);
+    al_attach_sample_instance_to_mixer(morder_game_effect_instance, al_get_default_mixer());
+
+    // Cria a fila de eventos
+    event_queue = al_create_event_queue();
+    if (!event_queue)
+    {
+        cout << "ERRO! Nao foi possivel criar a fila de eventos.\n";
+
+        al_destroy_bitmap(game_background);
+        al_destroy_bitmap(game_menu);
+
+        al_destroy_sample_instance(morder_game_effect_instance);
+        al_destroy_sample_instance(background_menu_music_instance);
+        al_destroy_sample(morder_game_effect);
+        al_destroy_sample(background_menu_music);
+        al_destroy_bitmap(fruit);
+        al_destroy_bitmap(snake);
+        al_destroy_bitmap(map);
+        al_destroy_display(display);
+        al_destroy_timer(timer);
+
+        return false;
+    }
+
+    // registra os eventos
+    al_register_event_source(event_queue, al_get_display_event_source(display));
+    al_register_event_source(event_queue, al_get_timer_event_source(timer));
+    al_register_event_source(event_queue, al_get_keyboard_event_source());
+
+    // reinicio de cores
+    al_clear_to_color(al_map_rgb(0, 0, 0));
+
+    // inicia o timer
+    al_start_timer(timer);
 
     return true;
 }
 
 bool init_menu()
 {
+    // inicia menu music
+    al_play_sample_instance(background_menu_music_instance);
+
+    // desenha o plano de fundo padrão
+    al_draw_bitmap(game_background, 0, 0, 0);
+
+    //
+
+    // Desenha o menu
+    al_draw_bitmap(game_menu, (SCREEN_W - 202) * 0.5, (SCREEN_H - 364) * 0.5, 0);
+
+    al_flip_display();
+
+    return true;
 }
 
 void run_menu()
@@ -530,27 +575,60 @@ void run_menu()
 
 void destroy_menu()
 {
+    // para musica de fundo
+    al_stop_sample_instance(background_menu_music_instance);
 }
 
 int main()
 {
-    if (!init_menu())
+
+    // inicialização global
+    if (!init())
     {
-        return 0;
+        return -1;
     }
 
-    while (menu_running)
+    do
     {
-        run_menu();
-    }
+        // inicializacao de menu
+        if (!init_menu())
+        {
+            return -1;
+        }
 
-    destroy_menu();
+        // loop do menu
+        while (menu_running)
+        {
+            run_menu();
+        }
 
-    bool exit = game();
-    if (!exit)
-    {
-        return 0;
-    }
+        // destroi o menu
+        destroy_menu();
+
+        // inicializacao de jogo
+        if (!init_game())
+        {
+            return -1;
+        }
+
+        // inicializa variaveis de direcao
+        move_up = false;
+        move_down = false;
+        move_left = false;
+        move_right = false;
+
+        // gera a fruta inicial
+        generate_fruit();
+
+        // executa o jogo
+        while (game_running)
+        {
+            run_game();
+        }
+
+        // finaliza o jogo
+        destroy_game();
+    } while (true);
 
     return 0;
 }
