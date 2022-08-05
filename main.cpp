@@ -12,7 +12,7 @@ using namespace std;
 struct GameParameters
 {
     // Definicao de FPS
-    const double FPS = 8;
+    const double FPS = 10;
     // Definicao de Altura
     const int SCREEN_H = 700;
     // Definicao de largura
@@ -23,6 +23,7 @@ struct GameParameters
     const int SAMPLES = 7;
 };
 
+// Background musics
 struct Songs
 {
     ALLEGRO_SAMPLE *menu;
@@ -34,17 +35,19 @@ struct Songs
     ALLEGRO_SAMPLE_INSTANCE *game_over_instance;
 };
 
+// Efeitos
 struct Effects
 {
     ALLEGRO_SAMPLE *food;
-    ALLEGRO_SAMPLE *spoiled_food;
-    ALLEGRO_SAMPLE *special;
     ALLEGRO_SAMPLE *lost_game;
 
+    ALLEGRO_SAMPLE *spoiled_food;
+    ALLEGRO_SAMPLE *special;
+
     ALLEGRO_SAMPLE_INSTANCE *food_instance;
+    ALLEGRO_SAMPLE_INSTANCE *lost_game_instance;
     ALLEGRO_SAMPLE_INSTANCE *spoiled_food_instance;
     ALLEGRO_SAMPLE_INSTANCE *special_instance;
-    ALLEGRO_SAMPLE_INSTANCE *lost_game_instance;
 };
 
 GameParameters game_parameters;
@@ -61,10 +64,10 @@ ALLEGRO_BITMAP *map = NULL;
 ALLEGRO_BITMAP *snake = NULL;
 // frutas
 ALLEGRO_BITMAP *fruit = NULL;
+ALLEGRO_BITMAP *spoiled_fruit = NULL;
 // menu
 ALLEGRO_BITMAP *game_background = NULL;
 ALLEGRO_BITMAP *game_menu = NULL;
-ALLEGRO_BITMAP *clouds = NULL;
 // fila de eventos
 ALLEGRO_EVENT_QUEUE *event_queue = NULL;
 ALLEGRO_FONT *game_font = NULL;
@@ -111,6 +114,9 @@ bool redraw = true;
 // posicao da fruta no mapa
 int fruit_line, fruit_collum;
 
+// posicao da fruta ruim no mapa
+int spoiled_fruit_line, spoiled_fruit_collum;
+
 // matriz referencia "onde cobra passou"
 int MOVEMENT[22][30] = {0};
 
@@ -122,6 +128,9 @@ int snake_size = 4;
 
 // index da fruta atual
 int fruit_index = 0;
+
+// index da fruta ruim atual
+int spoiled_fruit_index = 0;
 
 // Posição da cobra na matriz
 int i = 11, j = 11;
@@ -138,12 +147,26 @@ bool finish_game = false;
 // mouse position
 int mouse_x, mouse_y;
 
+// pontos do game
 int points = 0;
 
+// frag game over em execução
 bool gameover_running = false;
+
+// segundos pecorridos;
+int temp_segs = 0;
+
+// tempo para exibir especial
+int special_segs = 10;
+
+// tempo para remover especial da tela
+int special_segs_remove = 5;
+
+bool special_segs_run = false;
 
 bool init()
 {
+    srand(time(0));
 
     // verifica se e possivel carregar o allegro
     if (!al_init() || !al_init_image_addon() || !al_init_acodec_addon() ||
@@ -189,9 +212,8 @@ bool init()
     fruit = al_load_bitmap("./assets/images/fruits.png");
     game_background = al_load_bitmap("./assets/images/menu_back.png");
     game_menu = al_load_bitmap("./assets/images/menu.png");
-    clouds = al_load_bitmap("./assets/images/clouds.png");
-
-    if (!map || !snake || !fruit || !game_background || !game_menu || !clouds)
+    spoiled_fruit = al_load_bitmap("./assets/images/spoiled_fruit.png");
+    if (!map || !snake || !fruit || !game_background || !game_menu || !spoiled_fruit)
     {
         cout << "ERRO! Nao foi possivel carregar assets.\n";
         al_destroy_display(display);
@@ -214,10 +236,9 @@ bool init()
         !effects.special || !effects.spoiled_food || !effects.lost_game)
     {
         cout << "ERRO! Nao foi possivel carregar sons.\n";
-
+        al_destroy_bitmap(spoiled_fruit);
         al_destroy_bitmap(game_background);
         al_destroy_bitmap(game_menu);
-
         al_destroy_bitmap(fruit);
         al_destroy_bitmap(snake);
         al_destroy_bitmap(map);
@@ -243,12 +264,16 @@ bool init()
         !songs.menu_instance || !songs.playing_instance || !songs.game_over_instance)
     {
         cout << "ERRO! Não foi possivel criar samples instances.\n";
+        al_destroy_sample(songs.menu);
+        al_destroy_sample(songs.playing);
+        al_destroy_sample(songs.game_over);
+        al_destroy_sample(effects.food);
+        al_destroy_sample(effects.special);
+        al_destroy_sample(effects.spoiled_food);
+        al_destroy_sample(effects.lost_game);
 
         al_destroy_bitmap(game_background);
         al_destroy_bitmap(game_menu);
-
-        // al_destroy_sample(morder_game_effect);
-        // al_destroy_sample(background_menu_music);
         al_destroy_bitmap(fruit);
         al_destroy_bitmap(snake);
         al_destroy_bitmap(map);
@@ -291,13 +316,23 @@ bool init()
     {
         cout << "ERRO! Nao foi possivel criar a fila de eventos.\n";
 
+        al_destroy_sample_instance(songs.menu_instance);
+        al_destroy_sample_instance(songs.playing_instance);
+        al_destroy_sample_instance(songs.game_over_instance);
+        al_destroy_sample_instance(effects.food_instance);
+        al_destroy_sample_instance(effects.special_instance);
+        al_destroy_sample_instance(effects.spoiled_food_instance);
+        al_destroy_sample_instance(effects.lost_game_instance);
+        al_destroy_sample(songs.menu);
+        al_destroy_sample(songs.playing);
+        al_destroy_sample(songs.game_over);
+        al_destroy_sample(effects.food);
+        al_destroy_sample(effects.special);
+        al_destroy_sample(effects.spoiled_food);
+        al_destroy_sample(effects.lost_game);
+
         al_destroy_bitmap(game_background);
         al_destroy_bitmap(game_menu);
-
-        /*al_destroy_sample_instance(morder_game_effect_instance);
-        al_destroy_sample_instance(background_menu_music_instance);
-        al_destroy_sample(morder_game_effect);
-        al_destroy_sample(background_menu_music);*/
         al_destroy_bitmap(fruit);
         al_destroy_bitmap(snake);
         al_destroy_bitmap(map);
@@ -334,8 +369,6 @@ bool init_menu()
 }
 void generate_fruit()
 {
-    srand(time(0));
-
     // sorteia a fruta
     fruit_index = rand() % 3;
 
@@ -356,15 +389,17 @@ bool init_game()
     move_up = false;
     move_down = false;
     move_left = false;
-    move_right = false;
+    move_right = true;
 
     position = 0;
 
     redraw = true;
 
     snake_size = 4;
+    points = 0;
+
     i = 11;
-    j = 11;
+    j = 1;
 
     for (int i = 0; i < 22; i++)
     {
@@ -460,8 +495,20 @@ void move_snake()
         lost_game = true;
     }
 
+    // verifica se pegou fruta ruim
+    if ((move_up || move_down || move_left || move_right) && MAP_REF[i][j] == '5')
+    {
+        points -= 10;
+        if (points < 0)
+        {
+            points = 0;
+        }
+        special_segs_run = false;
+    }
+
     // solicita redesenho de jogo
     redraw = true;
+    cout << temp_segs << endl;
 }
 
 void direction_snake(int keycode)
@@ -548,6 +595,7 @@ void check_event(ALLEGRO_EVENT ev)
     // verifica qual foi o evento acionado e chama a função correspondente.
     if (ev.type == ALLEGRO_EVENT_TIMER)
     {
+        temp_segs++;
         move_snake();
     }
 
@@ -649,6 +697,10 @@ void redraw_game()
     // contador de partes da cobra
     int counter = 0;
 
+    if (special_segs_run)
+    {
+        al_draw_bitmap_region(spoiled_fruit, 26 * spoiled_fruit_index, 0, 26, 26, spoiled_fruit_collum * game_parameters.SIZE_REF + 115, spoiled_fruit_line * game_parameters.SIZE_REF + 92, 0);
+    }
     // plano de fundo
     al_draw_bitmap(game_background, 0, 0, 0);
 
@@ -659,8 +711,8 @@ void redraw_game()
     al_draw_bitmap_region(fruit, 26 * fruit_index, 0, 26, 26, fruit_collum * game_parameters.SIZE_REF + 115, fruit_line * game_parameters.SIZE_REF + 92, 0);
 
     // escreve placar
-
     al_draw_textf(game_font, al_map_rgb(255, 255, 255), 226, 32, 0, "%.3d", points);
+
     // desenha a cobra
     for (int i = 0; i < 22; i++)
     {
@@ -696,8 +748,38 @@ void is_game_lost()
     }
 }
 
+void set_spoiled_fruit()
+{
+    if (temp_segs >= special_segs && !special_segs_run)
+    {
+        special_segs_run = true;
+        temp_segs = 0;
+
+        do
+        {
+            // sorteia aleatoriamente a linha e coluna da fruta
+            spoiled_fruit_line = rand() % 21;
+            spoiled_fruit_collum = rand() % 29;
+        } while (MAP_REF[spoiled_fruit_line][spoiled_fruit_collum] == '1' || MAP_REF[spoiled_fruit_line][spoiled_fruit_collum] == '4');
+
+        MAP_REF[spoiled_fruit_line][spoiled_fruit_collum] = '5';
+    }
+    else if (temp_segs >= special_segs_remove && special_segs_run)
+    {
+        special_segs_run = false;
+        temp_segs = 0;
+        MAP_REF[spoiled_fruit_line][spoiled_fruit_collum] = '0';
+    }
+}
+
 void run_game()
 {
+
+    set_spoiled_fruit();
+
+    // envia mudancas ao display
+    al_flip_display();
+
     // Cria evento local allegro
     ALLEGRO_EVENT ev;
 
@@ -713,9 +795,6 @@ void run_game()
         redraw_game();
     }
 
-    // envia mudancas ao display
-    al_flip_display();
-
     //  verifica se é o fim do jogo
     is_game_lost();
 }
@@ -725,15 +804,8 @@ void destroy_game()
     al_stop_sample_instance(songs.playing_instance);
 }
 
-void draw_clouds()
-{
-}
-
 void run_menu()
 {
-    // desenha nuvens de fundo
-    draw_clouds();
-
     // Cria evento local allegro
     ALLEGRO_EVENT ev;
 
@@ -746,6 +818,7 @@ void run_menu()
 
 void destroy_menu()
 {
+    al_flip_display();
     // para musica de fundo
     al_stop_sample_instance(songs.menu_instance);
 }
@@ -777,8 +850,8 @@ void run_gameover()
     check_event(ev);
 }
 
-
-void destroy_gameover(){
+void destroy_gameover()
+{
     al_stop_sample_instance(songs.game_over_instance);
 }
 int main()
@@ -822,20 +895,44 @@ int main()
         // finaliza o jogo
         destroy_game();
 
-        // inicializacao de menu
+        // inicializacao de gameover
         if (!init_gameover())
         {
             return -1;
         }
 
-        // loop do menu
+        // loop do gameover
         while (gameover_running)
         {
             run_gameover();
         }
 
+        // finaliza game over
         destroy_gameover();
     } while (!finish_game);
+
+    // Destroi objetos dos jogo e finaliza
+    al_destroy_sample_instance(songs.menu_instance);
+    al_destroy_sample_instance(songs.playing_instance);
+    al_destroy_sample_instance(songs.game_over_instance);
+    al_destroy_sample_instance(effects.food_instance);
+    al_destroy_sample_instance(effects.special_instance);
+    al_destroy_sample_instance(effects.spoiled_food_instance);
+    al_destroy_sample_instance(effects.lost_game_instance);
+    al_destroy_sample(songs.menu);
+    al_destroy_sample(songs.playing);
+    al_destroy_sample(songs.game_over);
+    al_destroy_sample(effects.food);
+    al_destroy_sample(effects.special);
+    al_destroy_sample(effects.spoiled_food);
+    al_destroy_sample(effects.lost_game);
+    al_destroy_bitmap(game_background);
+    al_destroy_bitmap(game_menu);
+    al_destroy_bitmap(fruit);
+    al_destroy_bitmap(snake);
+    al_destroy_bitmap(map);
+    al_destroy_display(display);
+    al_destroy_timer(timer);
 
     return 0;
 }
